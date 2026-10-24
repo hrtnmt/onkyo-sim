@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QL1 録音シミュレーター</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<!-- ================= SETUP ================= -->
+<section id="setup" class="setup" aria-labelledby="setup-title">
+  <div class="setup-card">
+    <p class="eyebrow">講堂PA 練習用</p>
+    <h1 id="setup-title">QL1 録音シミュレーター</h1>
+    <p class="lead">ステージで演奏中の音を、QL1のUSBレコーダーで録音する操作を体験します。まず「演奏の音」として使う音源を選んでください。</p>
+
+    <div class="src-tabs" role="tablist">
+      <button class="src-tab is-active" role="tab" data-src="file" aria-selected="true">PCのファイル</button>
+      <button class="src-tab" role="tab" data-src="url" aria-selected="false">URL / Googleドライブ</button>
+      <button class="src-tab" role="tab" data-src="demo" aria-selected="false">デモ音源</button>
+    </div>
+
+    <div class="src-panel" data-panel="file">
+      <label class="file-drop" id="file-drop">
+        <input type="file" id="file-input" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac">
+        <span class="file-drop-main">音声ファイルを選択</span>
+        <span class="file-drop-sub" id="file-name">MP3 / WAV / M4A など（ドラッグ&amp;ドロップ可）</span>
+      </label>
+    </div>
+
+    <div class="src-panel" data-panel="url" hidden>
+      <label class="field-label" for="url-input">音源のURL</label>
+      <div class="url-row">
+        <input type="url" id="url-input" placeholder="https://drive.google.com/file/d/…/view">
+        <button class="btn-ghost" id="url-load">読み込む</button>
+      </div>
+      <p class="note">Googleドライブの場合は、共有設定を「リンクを知っている全員」にしたファイルのリンクを貼り付けてください。サイト側の制限で読み込めないときは、ファイルをダウンロードして「PCのファイル」から選んでください。</p>
+    </div>
+
+    <div class="src-panel" data-panel="demo" hidden>
+      <p class="note">ピアノとストリングス風の合成音（約70秒）です。静かに始まり、後半で大きく盛り上がります。最初の音量だけでゲインを決めると、後半で音割れするかもしれません。</p>
+      <button class="btn-ghost" id="demo-load">デモ音源を準備する</button>
+    </div>
+
+    <div class="src-status" id="src-status" role="status" aria-live="polite">音源が未選択です</div>
+
+    <button class="btn-primary" id="start-btn" disabled>シミュレーション開始</button>
+    <p class="fine">音が出ます。ヘッドホンまたはスピーカーの音量に注意してください。</p>
+  </div>
+</section>
+
+<!-- ================= APP ================= -->
+<main id="app" class="app" hidden>
+  <div class="console">
+    <div class="console-top">
+      <span class="model">QL1</span>
+      <span class="model-sub">DIGITAL MIXING CONSOLE — 練習用シミュレーター</span>
+      <span class="stage" id="stage-indicator"><span class="stage-dot"></span><span id="stage-text">ステージ：演奏中</span></span>
+    </div>
+
+    <div class="console-body">
+      <!-- Touch screen -->
+      <div class="screen" id="screen">
+        <!-- function access bar -->
+        <div class="fab">
+          <div class="fab-scene"><span class="fab-k">SCENE</span><span class="fab-v">000</span><span class="fab-n">Initial Data</span></div>
+          <div class="fab-btns">
+            <span class="fab-btn">SETUP</span>
+            <span class="fab-btn is-on">RECORDER</span>
+            <span class="fab-btn">RACK</span>
+            <span class="fab-btn">METER</span>
+          </div>
+        </div>
+
+        <div class="win-title">
+          <span>RECORDER</span>
+          <div class="win-tabs"><span class="win-tab is-on">USB</span><span class="win-tab is-dim">NUENDO LIVE</span></div>
+        </div>
+
+        <div class="rec-grid">
+          <!-- USB info -->
+          <div class="panel usb-info">
+            <div class="kv"><span class="k">VOLUME NAME</span><span class="v">USB DRIVE</span></div>
+            <div class="kv"><span class="k">FREE SIZE</span><span class="v" id="free-size">28.62 GB</span></div>
+            <div class="kv kv-btn">
+              <span class="k">REC RATE</span>
+              <button class="qbtn qbtn-rate" id="rate-btn" aria-label="録音ビットレートを切り替え">128kbps</button>
+            </div>
+          </div>
+
+          <!-- RECORDER INPUT -->
+          <div class="panel rec-input">
+            <div class="panel-title">RECORDER INPUT</div>
+            <div class="ri-body">
+              <div class="ri-assign">
+                <div class="ri-row"><span class="ri-lr">L</span><button class="qbtn qbtn-ch" id="assign-L" data-side="L"><span class="ch-name">ST L</span><span class="popup-mark" aria-hidden="true"></span></button></div>
+                <div class="ri-row"><span class="ri-lr">R</span><button class="qbtn qbtn-ch" id="assign-R" data-side="R"><span class="ch-name">ST R</span><span class="popup-mark" aria-hidden="true"></span></button></div>
+              </div>
+              <div class="ri-gain">
+                <div class="knob" id="gain-knob" role="slider" tabindex="0" aria-label="GAIN" aria-valuemin="-30" aria-valuemax="30" aria-valuenow="0">
+                  <div class="knob-ring"></div>
+                  <div class="knob-cap"><div class="knob-ptr"></div></div>
+                </div>
+                <div class="gain-val" id="gain-val">0.0</div>
+                <div class="gain-label">GAIN</div>
+                <button class="qbtn qbtn-cue" id="cue-btn" aria-pressed="false">CUE</button>
+              </div>
+              <div class="meter" aria-label="レベルメーター">
+                <div class="meter-head"><span>L</span><span>R</span></div>
+                <div class="meter-body">
+                  <canvas id="meter-L" class="meter-bar"></canvas>
+                  <div class="meter-scale" id="meter-scale"></div>
+                  <canvas id="meter-R" class="meter-bar"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Transport -->
+          <div class="panel transport">
+            <div class="panel-title">TRANSPORT</div>
+            <div class="tp-display">
+              <div class="tp-status" id="tp-status">STOP</div>
+              <div class="tp-time" id="tp-time">00:00:00</div>
+            </div>
+            <div class="tp-btns">
+              <button class="tbtn tbtn-rec" id="rec-btn" aria-label="REC（録音待機）"><span class="ico-rec"></span></button>
+              <button class="tbtn tbtn-play" id="play-btn" aria-label="PLAY / PAUSE"><span class="ico-play"></span><span class="ico-pause"></span></button>
+              <button class="tbtn tbtn-stop" id="stop-btn" aria-label="STOP"><span class="ico-stop"></span></button>
+            </div>
+          </div>
+
+          <!-- File list -->
+          <div class="panel filelist">
+            <div class="fl-head"><span class="fl-no">NO.</span><span class="fl-name">FILE NAME</span><span class="fl-artist">ARTIST</span><span class="fl-time">TIME</span></div>
+            <div class="fl-dir"><span class="fl-folder" aria-hidden="true"></span>[YPE]</div>
+            <div class="fl-rows" id="fl-rows"><div class="fl-empty">ファイルがありません</div></div>
+          </div>
+        </div>
+
+        <!-- Clip warning -->
+        <div class="clip-warn" id="clip-warn" role="alert" hidden>
+          <strong>OVER — 音割れしています</strong>
+          <span>メーターが0dBを超えました。GAINを下げてください。</span>
+        </div>
+
+        <!-- Toast -->
+        <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+        <!-- CH SELECT popup -->
+        <div class="chsel" id="chsel" hidden>
+          <div class="chsel-win" role="dialog" aria-modal="true" aria-labelledby="chsel-title">
+            <div class="chsel-title"><span id="chsel-title">CH SELECT — RECORDER INPUT L</span><button class="chsel-close" id="chsel-close" aria-label="閉じる">×</button></div>
+            <div class="chsel-body">
+              <div class="chsel-cats" id="chsel-cats"></div>
+              <div class="chsel-grid" id="chsel-grid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Physical: touch and turn -->
+      <div class="hw">
+        <div class="hw-label">TOUCH AND TURN</div>
+        <div class="hw-knob" id="hw-knob" role="slider" tabindex="0" aria-label="TOUCH AND TURN ノブ"><div class="hw-knob-cap"><div class="hw-knob-dot"></div></div></div>
+        <div class="hw-hint" id="hw-hint">画面のGAINをタッチすると操作できます</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Side panel -->
+  <aside class="side">
+    <section class="card">
+      <h2>手順</h2>
+      <ol class="steps" id="steps">
+        <li data-step="rate"><span class="st-mark"></span><div><b>REC RATE を 192kbps に</b><small>推奨。押すたびに切り替わります</small></div></li>
+        <li data-step="L"><span class="st-mark"></span><div><b>L に INPUT 11 を選ぶ</b><small>L のボタン → タブを切り替えて探す</small></div></li>
+        <li data-step="R"><span class="st-mark"></span><div><b>R に INPUT 12 を選ぶ</b><small>R のボタンも同様に</small></div></li>
+        <li data-step="gain"><span class="st-mark"></span><div><b>GAIN でピークを −10〜−6dB に</b><small>ツマミを押したまま上下にドラッグ</small></div></li>
+        <li data-step="standby"><span class="st-mark"></span><div><b>● で録音待機</b><small>REC ボタンが点滅します</small></div></li>
+        <li data-step="record"><span class="st-mark"></span><div><b>▶❚❚ で録音開始</b><small>演奏の最後まで録音</small></div></li>
+        <li data-step="stop"><span class="st-mark"></span><div><b>■ で録音停止</b><small>YPE フォルダに保存されます</small></div></li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>レベル</h2>
+      <div class="readouts">
+        <div class="ro"><span class="ro-k">現在のピーク</span><span class="ro-v" id="ro-peak">−∞</span></div>
+        <div class="ro"><span class="ro-k">直近5秒の最大</span><span class="ro-v" id="ro-max">−∞</span></div>
+        <div class="ro"><span class="ro-k">OVER 回数</span><span class="ro-v" id="ro-over">0</span></div>
+      </div>
+      <div class="target-bar" aria-hidden="true">
+        <div class="tb-zone"></div>
+        <div class="tb-cursor" id="tb-cursor"></div>
+        <div class="tb-labels"><span>−30</span><span>−18</span><span>−10</span><span>−6</span><span>0</span></div>
+      </div>
+      <label class="mon">
+        <span>モニター音量</span>
+        <input type="range" id="mon-vol" min="0" max="100" value="60">
+      </label>
+      <p class="mon-note" id="mon-note">いま聴こえているのは会場の音です。CUE を押すと録音される音（GAIN 適用後）を聴けます。</p>
+    </section>
+
+    <section class="card" id="result-card" hidden>
+      <h2>録音結果</h2>
+      <div id="result-body"></div>
+    </section>
+
+    <section class="card card-tools">
+      <button class="btn-ghost" id="restart-src">演奏を最初から</button>
+      <button class="btn-ghost" id="reset-all">設定をリセット</button>
+      <button class="btn-ghost" id="change-src">音源を変更</button>
+    </section>
+  </aside>
+</main>
+
+<script src="./app.js"></script>
+</body>
+</html>
