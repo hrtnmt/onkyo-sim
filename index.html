@@ -337,6 +337,20 @@
 </main>
 
 <div class="pop-warn" id="pop-warn" role="alert" hidden></div>
+<div class="boom" id="boom" role="alertdialog" aria-labelledby="boom-title" hidden>
+  <div class="boom-flash"></div>
+  <div class="boom-fire"></div>
+  <div class="boom-debris"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="boom-card">
+    <p class="boom-big">ドカーン</p>
+    <svg class="boom-grave" viewBox="0 0 120 120" aria-hidden="true"><path d="M20 112V52a40 40 0 0 1 80 0v60z" fill="#5d636b" stroke="#2c3035" stroke-width="3"/><path d="M8 112h104" stroke="#3b4a2f" stroke-width="6" stroke-linecap="round"/><text x="60" y="66" text-anchor="middle" font-size="18" font-weight="700" fill="#2a2d31" font-family="JetBrains Mono,monospace">R.I.P.</text><text x="60" y="88" text-anchor="middle" font-size="9" fill="#2a2d31" font-family="sans-serif">音響係</text></svg>
+    <h2 id="boom-title">GAME OVER</h2>
+    <p>スピーカーのツマミを上げたまま 10 回もケーブルを抜き差ししたため、照明室のモニタースピーカーが爆発しました。</p>
+    <p>あなたは帰らぬ人となりました。</p>
+    <p class="boom-lesson">教訓：抜き差しの前に、スピーカーのツマミは 0。</p>
+    <button class="btn-primary" id="boom-retry">生き返る（設定を最初から）</button>
+  </div>
+</div>
 <script src="./app.js"></script>
 </body>
 </html>

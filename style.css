@@ -526,3 +526,50 @@ button.fab-btn.is-guide{box-shadow:0 0 0 2px var(--orange),0 0 12px rgba(232,116
   .spk-knob{width:46px;height:46px}.spk-knob-cap{width:36px;height:36px}
   #page-monitor .meter-body{min-height:120px}
 }
+
+/* ===== explosion ending ===== */
+.pop-warn em{display:block;font-style:normal;font-weight:700;margin-top:4px;color:#fff2b0}
+.spk-box.is-smoke::before,.spk-box.is-smoke-heavy::before{content:"";position:absolute;left:50%;top:-6px;width:36px;height:36px;margin-left:-18px;border-radius:50%;background:radial-gradient(circle,rgba(170,170,170,.55),rgba(120,120,120,0) 70%);animation:smoke 1.8s ease-out infinite;pointer-events:none}
+.spk-box.is-smoke-heavy::after{content:"";position:absolute;left:30%;top:-10px;width:50px;height:50px;border-radius:50%;background:radial-gradient(circle,rgba(140,140,140,.6),rgba(90,90,90,0) 70%);animation:smoke 1.3s ease-out .4s infinite;pointer-events:none}
+.spk-box.is-smoke-heavy{animation:jitter .12s linear infinite}
+@keyframes smoke{from{transform:translateY(0) scale(.6);opacity:.9}to{transform:translateY(-46px) scale(1.8);opacity:0}}
+@keyframes jitter{50%{transform:translate(.6px,-.6px)}}
+.spk-box.is-broken{animation:none;background:linear-gradient(#1a1a1a,#060606);border-color:#3a1a0a}
+.spk-box.is-broken .spk-cone{background:radial-gradient(circle,#000 0 40%,#2a1408 41% 46%,#000 47%);transform:rotate(18deg) scale(.92) !important;border-style:dashed;border-color:#5a2a10}
+.spk-box.is-broken .spk-tw{background:#000;border-color:#3a1a0a}
+.spk-box.is-broken .spk-led{background:#111 !important;box-shadow:none !important}
+body.is-shake{animation:shake .9s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shake{10%,90%{transform:translate(-2px,1px)}20%,80%{transform:translate(5px,-3px)}30%,50%,70%{transform:translate(-9px,4px)}40%,60%{transform:translate(9px,-4px)}}
+.boom{position:fixed;inset:0;z-index:100;display:grid;place-items:center;overflow:hidden;background:rgba(0,0,0,0)}
+.boom.is-go{animation:boomBg 1.8s forwards}
+@keyframes boomBg{0%{background:rgba(0,0,0,0)}60%{background:rgba(20,6,0,.6)}100%{background:rgba(8,4,2,.92)}}
+.boom-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.boom.is-go .boom-flash{animation:flashOut .5s ease-out}
+@keyframes flashOut{0%{opacity:1}100%{opacity:0}}
+.boom-fire{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:radial-gradient(circle,#fff6c2 0%,#ffd04a 25%,#ff7a1a 50%,#c2280a 70%,rgba(60,10,0,0) 72%);transform:scale(0);opacity:0}
+.boom.is-go .boom-fire{animation:fire 1.5s cubic-bezier(.1,.8,.3,1) forwards}
+@keyframes fire{0%{transform:scale(0);opacity:1}35%{transform:scale(26);opacity:1}100%{transform:scale(34);opacity:0}}
+.boom-debris i{position:absolute;left:50%;top:50%;width:14px;height:10px;background:#2a2c30;border:1px solid #000;opacity:0}
+.boom.is-go .boom-debris i{animation:debris 1.4s cubic-bezier(.2,.7,.4,1) forwards}
+.boom-debris i:nth-child(1){--x:-42vw;--y:-30vh;--r:400deg}
+.boom-debris i:nth-child(2){--x:38vw;--y:-36vh;--r:-300deg}
+.boom-debris i:nth-child(3){--x:-30vw;--y:34vh;--r:250deg}
+.boom-debris i:nth-child(4){--x:44vw;--y:28vh;--r:-520deg}
+.boom-debris i:nth-child(5){--x:2vw;--y:-46vh;--r:610deg;width:22px;height:22px;border-radius:50%}
+.boom-debris i:nth-child(6){--x:-48vw;--y:4vh;--r:-200deg}
+.boom-debris i:nth-child(7){--x:48vw;--y:-4vh;--r:330deg}
+.boom-debris i:nth-child(8){--x:-6vw;--y:46vh;--r:-440deg;width:8px;height:20px}
+@keyframes debris{0%{transform:translate(0,0) rotate(0);opacity:1}100%{transform:translate(var(--x),var(--y)) rotate(var(--r));opacity:0}}
+.boom-big{position:absolute;left:0;right:0;top:-74px;margin:0;text-align:center;font-size:56px;font-weight:900;color:#ffdf5a;letter-spacing:.06em;-webkit-text-stroke:2px #7a1d00;text-shadow:0 6px 0 #7a1d00,0 0 30px rgba(255,120,0,.8)}
+.boom-card{position:relative;width:min(420px,88vw);background:#16181b;border:1px solid #3a2a20;border-radius:14px;padding:22px 22px 18px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.7);opacity:0;transform:scale(.6)}
+.boom.is-go .boom-card{animation:cardIn .45s .55s cubic-bezier(.2,1.6,.4,1) forwards}
+.boom.is-go .boom-big{animation:bigIn .5s .45s cubic-bezier(.2,1.8,.4,1) both}
+@keyframes cardIn{to{opacity:1;transform:scale(1)}}
+@keyframes bigIn{from{transform:scale(3) rotate(-8deg);opacity:0}to{transform:scale(1) rotate(-4deg);opacity:1}}
+.boom-grave{width:92px;height:92px;display:block;margin:6px auto 4px;opacity:0}
+.boom.is-dead .boom-grave{animation:graveUp .8s ease-out forwards}
+@keyframes graveUp{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+.boom-card h2{margin:4px 0 8px;font-family:var(--font-mono);font-size:26px;letter-spacing:.14em;color:var(--led-r)}
+.boom-card p{margin:0 0 6px;font-size:14px;color:var(--muted)}
+.boom-lesson{color:var(--text) !important;font-weight:700;margin:10px 0 14px !important}
+@media (prefers-reduced-motion:reduce){.boom .boom-card,.boom .boom-grave{opacity:1 !important;transform:none !important}}

@@ -389,7 +389,7 @@
     if (!S.nodes.built) return;
     S.nodes.humG.gain.setTargetAtTime(S.hum ? db2lin(HUM_DB) : 0, S.ctx.currentTime, 0.05);
   }
-  const spkLin = (v) => v <= 0 ? 0 : db2lin(-36 + v * 3.6);
+  const spkLin = (v) => (v <= 0 || S.spkBroken) ? 0 : db2lin(-36 + v * 3.6);
   function applyMonitor() {
     const N = S.nodes; if (!N.built) return;
     const t = S.ctx.currentTime, playing = S.tstate === 'play';
@@ -758,14 +758,49 @@
     hint.textContent = S.held ? `INPUT ${S.held} のケーブルを持っています → 挿すソケットをタップ` : 'ケーブルの先（プラグ）をタップで抜く → 空いているソケットをタップで挿す';
     hint.classList.toggle('is-hold', !!S.held);
   }
+  const BOOM_AT = 10;
   function plugAction(kind) {
-    if (S.spk > 0) {
+    if (S.spk > 0 && !S.spkBroken) {
       S.popCount++; pop(Math.min(1, spkLin(S.spk) * 1.5 + 0.2));
+      if (S.popCount >= BOOM_AT) { setTimeout(explode, 350); return; }
+      const n = S.popCount, box = $('.spk-box');
+      box.classList.toggle('is-smoke', n >= 5); box.classList.toggle('is-smoke-heavy', n >= 8);
+      let extra = '';
+      if (n >= 8) extra = '<em>スピーカーから煙が出ています。中から「ジジジ…」と嫌な音がします。</em>';
+      else if (n >= 5) extra = '<em>なんだか焦げ臭いにおいがしてきました。</em>';
+      else if (n >= 3) extra = '<em>スピーカーのコーンが苦しそうに震えています。</em>';
       const w = $('#pop-warn');
-      w.innerHTML = `<strong>ボツッ</strong>スピーカーの音量が上がったまま${kind}しました。スピーカーのツマミを 0 にしてから抜き差ししましょう（壊れることがあります）。`;
+      w.innerHTML = `<strong>ボツッ</strong>スピーカーの音量が上がったまま${kind}しました。スピーカーのツマミを 0 にしてから抜き差ししましょう（壊れることがあります）。${extra}`;
       w.hidden = false; clearTimeout(plugAction.t); plugAction.t = setTimeout(() => { w.hidden = true; }, 4200);
     }
   }
+  function boomSound() {
+    const ctx = S.ctx, sr = ctx.sampleRate, len = Math.floor(sr * 3.2);
+    const b = ctx.createBuffer(2, len, sr);
+    for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let lp = 0;
+      for (let i = 0; i < len; i++) { const t = i / sr; const nz = Math.random() * 2 - 1; lp += (nz - lp) * (0.08 + 0.5 * Math.exp(-t * 6));
+        d[i] = (lp * 1.6 * Math.exp(-t * 1.3) + Math.sin(2 * Math.PI * (48 - t * 10) * t) * Math.exp(-t * 2.2) * 0.9 + (t > 0.25 && Math.random() < 0.0009 ? (Math.random() - 0.5) * 3 * Math.exp(-t) : 0)) * 0.55; } }
+    const src = ctx.createBufferSource(); src.buffer = b;
+    const g = ctx.createGain(); g.gain.value = 0.9; src.connect(g).connect(ctx.destination); src.start();
+  }
+  function explode() {
+    S.spkBroken = true; applyMonitor();
+    $('#pop-warn').hidden = true; setTouch(null);
+    try { boomSound(); } catch {}
+    if (navigator.vibrate) try { navigator.vibrate([400, 80, 250, 80, 600]); } catch {}
+    const box = $('.spk-box'); box.classList.remove('is-smoke'); box.classList.add('is-broken', 'is-smoke-heavy');
+    document.body.classList.add('is-shake'); setTimeout(() => document.body.classList.remove('is-shake'), 900);
+    const ov = $('#boom'); ov.hidden = false; ov.classList.remove('is-dead'); void ov.offsetWidth; ov.classList.add('is-go');
+    setTimeout(() => ov.classList.add('is-dead'), 1700);
+  }
+  $('#boom-retry').addEventListener('click', () => {
+    if (S.tstate === 'rec' || S.tstate === 'recpause' || S.tstate === 'standby') $('#stop-btn').click();
+    S.spkBroken = false;
+    $('.spk-box').classList.remove('is-broken', 'is-smoke', 'is-smoke-heavy');
+    $('#boom').hidden = true; $('#boom').classList.remove('is-go', 'is-dead');
+    setTimeout(() => { $('#reset-all').click(); toast('生き返りました。今度はスピーカーを 0 にしてから抜き差ししましょう', 3800); }, 50);
+  });
+
   svg.addEventListener('click', (e) => {
     const plug = e.target.closest('.plug'), sock = e.target.closest('.sock');
     if (plug) {
@@ -1002,7 +1037,7 @@
     if (S.mono) $('#mono-btn').click();
     S.hum = false; $('#hum-toggle').checked = false; applyHum();
     renderAssign(); applyRouting(); renderPatch();
-    Object.keys(S.steps).forEach(k => S.steps[k] = false); S.gainOkTime = 0; S.overCount = 0; S.popCount = 0; S.meter.hist = [];
+    Object.keys(S.steps).forEach(k => S.steps[k] = false); S.gainOkTime = 0; S.overCount = 0; S.popCount = 0; S.spkBroken = false; $('.spk-box').classList.remove('is-broken', 'is-smoke', 'is-smoke-heavy'); S.meter.hist = [];
     renderSteps(); toast('設定を初期状態に戻しました');
   });
   $('#change-src').addEventListener('click', () => {
