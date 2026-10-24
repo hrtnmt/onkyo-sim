@@ -44,7 +44,7 @@
     massign: { L: 'STL', R: 'STR' },
     patch: DEFAULT_PATCH(), held: null,
     gainDb: 0, mlevel: 0, spk: 0, mono: false, hum: false,
-    rate: 128, cue: false, touch: null, page: 'recorder',
+    rate: 128, cue: false, touch: null, page: 'recorder', view: 'desk',
     tstate: 'stop',
     rec: { chunksL: [], chunksR: [], samples: 0, maxPeak: -Infinity, overs: 0, gainMin: Infinity, gainMax: -Infinity, startedOk: null },
     files: [], selFile: -1, pbNode: null, pbStartAt: 0, pbOffset: 0,
@@ -433,7 +433,7 @@
     await buildGraph();
     calibrate(); applyRouting(); applyGain(); applyHum(); applyMonitor();
     startSource();
-    $('#setup').hidden = true; $('#app').hidden = false;
+    $('#setup').hidden = true; $('#app').hidden = false; sfxInit(); setView('desk');
     $('#stage-text').textContent = 'ステージ：演奏中 — ' + S.srcName;
     layoutMeters(); renderPatch();
     if (!S.raf) loop();
@@ -507,11 +507,58 @@
     S.steps.mL = S.massign.L === 'IN11'; S.steps.mR = S.massign.R === 'IN12';
   }
 
+  /* ---------- 操作音・振動 ---------- */
+  const SFX = { on: true, out: null, noise: null };
+  function sfxInit() {
+    const ctx = S.ctx; if (!ctx || SFX.out) return;
+    SFX.out = ctx.createGain(); SFX.out.gain.value = 0.55; SFX.out.connect(ctx.destination);
+    const len = Math.round(ctx.sampleRate * 0.25), b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    SFX.noise = b;
+  }
+  function burst(t, dur, freq, q, gain, type = 'bandpass') {
+    const ctx = S.ctx, src = ctx.createBufferSource(); src.buffer = SFX.noise;
+    const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = ctx.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    src.connect(f).connect(g).connect(SFX.out); src.start(t, Math.random() * 0.1); src.stop(t + dur + 0.02);
+  }
+  function thump(t, freq, dur, gain) {
+    const ctx = S.ctx, o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(freq * 0.5, t + dur);
+    g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    o.connect(g).connect(SFX.out); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function sfx(kind) {
+    if (!SFX.on || !S.ctx || S.ctx.state !== 'running') return;
+    sfxInit(); const t = S.ctx.currentTime + 0.002;
+    switch (kind) {
+      case 'btn': burst(t, 0.012, 2600, 1.2, 0.5); thump(t, 220, 0.045, 0.22); burst(t + 0.05, 0.01, 3400, 1.5, 0.22); break; // カチャ
+      case 'touch': burst(t, 0.008, 4200, 2, 0.28); break;
+      case 'tick': burst(t, 0.006, 5200 + Math.random() * 600, 3, 0.32); break;            // ノッチ
+      case 'limit': thump(t, 140, 0.05, 0.25); break;
+      case 'sw': burst(t, 0.01, 3000, 1.4, 0.45); burst(t + 0.03, 0.008, 2200, 1.4, 0.3); break;
+      case 'pull': burst(t, 0.012, 3200, 2, 0.5); burst(t + 0.03, 0.14, 900, 0.6, 0.2, 'lowpass'); break; // カチッ＋ズズッ
+      case 'insert': burst(t, 0.1, 900, 0.6, 0.18, 'lowpass'); burst(t + 0.1, 0.014, 2800, 1.6, 0.6); thump(t + 0.1, 160, 0.06, 0.3); break; // ズッ＋カチッ
+    }
+  }
+  const buzz = (ms) => { if (SFX.on && navigator.vibrate) try { navigator.vibrate(ms); } catch {} };
+  $('#sfx-toggle').addEventListener('change', (e) => { SFX.on = e.target.checked; });
+  // 押した感（画面ボタン・物理ボタン）
+  const PRESSABLE = '.qbtn, .tbtn, .fab-btn, .cat-btn, .ch-btn, .chsel-close, .btn-ghost, .prac-tab, .vbtn, .next-bar';
+  document.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest(PRESSABLE); if (!b) return;
+    b.classList.add('is-press'); sfx(b.matches('.prac-tab, .vbtn, .next-bar, .btn-ghost') ? 'touch' : 'btn'); buzz(b.matches('.tbtn') ? 14 : 8);
+    const up = () => { setTimeout(() => b.classList.remove('is-press'), 70); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); };
+    window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  }, true);
+  $('#hum-sw').addEventListener('pointerdown', () => { sfx('sw'); buzz(8); });
+
   /* ---------- knobs ---------- */
   const hw = $('#hw-knob');
+  // 画面上のツマミはタッチで「選ぶ」だけ。値は TOUCH AND TURN で変える。
   const KNOBS = {
-    gain: { el: $('#gain-knob'), min: GAIN_MIN, max: GAIN_MAX, get: () => S.gainDb, set: (v) => setGain(v), name: 'GAIN', step: 0.2 },
-    mlevel: { el: $('#mlevel-knob'), min: MLEVEL_MIN, max: MLEVEL_MAX, get: () => S.mlevel, set: (v) => setMLevel(v), name: 'MONITOR LEVEL', step: 0.3 },
+    gain: { el: $('#gain-knob'), min: GAIN_MIN, max: GAIN_MAX, get: () => S.gainDb, set: (v) => setGain(v), name: 'GAIN', step: 0.5, fine: 0.1 },
+    mlevel: { el: $('#mlevel-knob'), min: MLEVEL_MIN, max: MLEVEL_MAX, get: () => S.mlevel, set: (v) => setMLevel(v), name: 'MONITOR LEVEL', step: 1, fine: 0.5 },
   };
   function rotate(el, v, min, max) { const ang = (v - min) / (max - min) * 270 - 135; el.querySelector('.knob-cap, .spk-knob-cap').style.transform = `rotate(${ang}deg)`; }
   function setGain(db) {
@@ -530,55 +577,109 @@
     applyMonitor();
   }
   function setTouch(k) {
-    S.touch = k;
+    const prev = S.touch; S.touch = k;
     Object.entries(KNOBS).forEach(([key, o]) => o.el.classList.toggle('is-touched', key === k));
     hw.classList.toggle('is-armed', !!k);
-    $('#hw-hint').textContent = k ? `${KNOBS[k].name} を操作中（上下にドラッグ）` : '画面のツマミをタッチすると操作できます';
+    $('#hw-hint').innerHTML = k ? `<b>${KNOBS[k].name}</b> を選択中<br>このノブを回す` : '画面のツマミをタッチ<br>→ このノブで調整';
+    if (k !== prev) renderSteps();
   }
-  function dragControl(el, { onStart, onDelta }) {
-    let lastY = 0, active = false;
+  // 回転操作（ノッチ付き）。中心を囲むようにドラッグ／中央付近は上下ドラッグ／ホイール
+  function rotary(el, { detent, onStart, onStep }) {
+    let st = null;
+    const ang = (e, r) => Math.atan2(e.clientY - r.cy, e.clientX - r.cx) * 180 / Math.PI;
     el.addEventListener('pointerdown', (e) => {
       if (onStart && onStart() === false) return;
-      active = true; lastY = e.clientY; el.setPointerCapture(e.pointerId); e.preventDefault();
+      const b = el.getBoundingClientRect(), r = { cx: b.left + b.width / 2, cy: b.top + b.height / 2 };
+      const dist = Math.hypot(e.clientX - r.cx, e.clientY - r.cy);
+      st = { r, mode: dist < b.width * 0.22 ? 'v' : 'a', last: ang(e, r), y: e.clientY, acc: 0 };
+      el.setPointerCapture(e.pointerId); e.preventDefault(); el.focus({ preventScroll: true });
     });
-    el.addEventListener('pointermove', (e) => { if (!active) return; const dy = lastY - e.clientY; lastY = e.clientY; onDelta(dy, e.shiftKey); });
-    const end = () => { active = false; };
+    el.addEventListener('pointermove', (e) => {
+      if (!st) return;
+      let d;
+      if (st.mode === 'a') {
+        const a = ang(e, st.r); d = a - st.last; if (d > 180) d -= 360; if (d < -180) d += 360; st.last = a;
+        if (Math.hypot(e.clientX - st.r.cx, e.clientY - st.r.cy) < 6) d = 0;
+      } else { d = (st.y - e.clientY) * 1.6; st.y = e.clientY; }
+      st.acc += d;
+      while (st.acc >= detent) { st.acc -= detent; onStep(1, e.shiftKey); }
+      while (st.acc <= -detent) { st.acc += detent; onStep(-1, e.shiftKey); }
+    });
+    const end = () => { st = null; };
     el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
-    el.addEventListener('wheel', (e) => { if (onStart && onStart(true) === false) return; e.preventDefault(); onDelta(e.deltaY < 0 ? 2.5 : -2.5, false); }, { passive: false });
+    el.addEventListener('wheel', (e) => { e.preventDefault(); if (onStart && onStart(true) === false) return; onStep(e.deltaY < 0 ? 1 : -1, e.shiftKey); }, { passive: false });
+  }
+  function stepFeedback(el, changed) {
+    if (changed) { sfx('tick'); buzz(3); }
+    else { sfx('limit'); el.classList.remove('is-limit'); void el.offsetWidth; el.classList.add('is-limit'); }
   }
   Object.entries(KNOBS).forEach(([key, k]) => {
-    dragControl(k.el, { onStart: () => { setTouch(key); }, onDelta: (dy, fine) => k.set(k.get() + dy * (fine ? k.step / 4 : k.step)) });
+    k.el.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); setTouch(key); sfx('touch'); buzz(6);
+      k.el.classList.add('is-press'); setTimeout(() => k.el.classList.remove('is-press'), 90);
+    });
     k.el.addEventListener('keydown', (e) => {
-      const map = { ArrowUp: 0.5, ArrowRight: 0.5, ArrowDown: -0.5, ArrowLeft: -0.5, PageUp: 3, PageDown: -3 };
-      if (map[e.key] != null) { e.preventDefault(); setTouch(key); k.set(k.get() + map[e.key]); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTouch(key); return; }
+      const map = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 };
+      if (map[e.key] != null) { e.preventDefault(); setTouch(key); hwStep(map[e.key], e.shiftKey); }
     });
   });
   let hwAngle = 0;
-  dragControl(hw, {
-    onStart: (quiet) => { if (!S.touch) { if (!quiet) toast('先に画面のツマミ（GAIN や LEVEL）をタッチしてください'); return false; } },
-    onDelta: (dy, fine) => { const k = KNOBS[S.touch]; k.set(k.get() + dy * (fine ? k.step / 4 : k.step)); hwAngle += dy * 2; hw.querySelector('.hw-knob-cap').style.transform = `rotate(${hwAngle}deg)`; },
+  const HW_DETENT = 12;
+  function hwStep(dir, fine) {
+    if (!S.touch) return;
+    const k = KNOBS[S.touch], before = k.get();
+    k.set(before + dir * (fine ? k.fine : k.step));
+    const changed = k.get() !== before;
+    hwAngle += dir * HW_DETENT;
+    hw.querySelector('.hw-knob-cap').style.transform = `rotate(${hwAngle}deg)`;
+    stepFeedback(hw, changed);
+  }
+  rotary(hw, {
+    detent: HW_DETENT,
+    onStart: (quiet) => { if (!S.touch) { if (!quiet) { toast('先に画面のツマミ（GAIN や LEVEL）をタッチしてください'); sfx('limit'); } return false; } },
+    onStep: hwStep,
+  });
+  hw.addEventListener('keydown', (e) => {
+    const map = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 };
+    if (map[e.key] != null) { e.preventDefault(); if (!S.touch) { toast('先に画面のツマミ（GAIN や LEVEL）をタッチしてください'); return; } hwStep(map[e.key], e.shiftKey); }
   });
   $('#screen').addEventListener('pointerdown', (e) => { if (!e.target.closest('.knob')) setTouch(null); });
 
-  // モニタースピーカーのツマミ（0〜10）
+  // モニタースピーカーのツマミ（0〜10、0.5 刻みのノッチ）
   const spkKnob = $('#spk-knob');
   function setSpk(v) {
-    const prev = S.spk;
     S.spk = clamp(Math.round(v * 10) / 10, 0, 10);
     rotate(spkKnob, S.spk, 0, 10);
     $('#spk-val').textContent = S.spk.toFixed(1).replace(/\.0$/, '');
     spkKnob.setAttribute('aria-valuenow', S.spk);
+    const chip = $('#rack-spk'); chip.textContent = 'モニタースピーカー ' + $('#spk-val').textContent; chip.classList.toggle('is-up', S.spk > 0);
     applyMonitor();
-    // steps
     if (S.spk === 0 && S.steps.hum) S.steps.spk0 = true;
     if (S.spk > 0 && S.steps.pullL && S.steps.pullR) S.steps.spkup = true;
     renderSteps();
   }
-  dragControl(spkKnob, { onDelta: (dy) => setSpk(S.spk + dy * 0.05) });
+  function spkStep(dir) { const b = S.spk; setSpk(S.spk + dir * 0.5); stepFeedback(spkKnob, S.spk !== b); }
+  rotary(spkKnob, { detent: 13.5, onStep: spkStep });
   spkKnob.addEventListener('keydown', (e) => {
-    const map = { ArrowUp: 0.5, ArrowRight: 0.5, ArrowDown: -0.5, ArrowLeft: -0.5, Home: -10, End: 10 };
-    if (map[e.key] != null) { e.preventDefault(); setSpk(S.spk + map[e.key]); }
+    const map = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 };
+    if (map[e.key] != null) { e.preventDefault(); spkStep(map[e.key]); }
+    if (e.key === 'Home') { e.preventDefault(); setSpk(0); sfx('tick'); }
+    if (e.key === 'End') { e.preventDefault(); setSpk(10); sfx('tick'); }
   });
+
+  /* ---------- 表示の切り替え（スマホ） ---------- */
+  function setView(v) {
+    S.view = v;
+    const app = $('#app'); app.classList.remove('view-desk', 'view-rack', 'view-menu'); app.classList.add('view-' + v);
+    $$('.vbtn').forEach(b => b.classList.toggle('is-on', b.dataset.viewBtn === v));
+    if (v === 'menu') $('#menu-badge').hidden = true;
+    if (v === 'desk') requestAnimationFrame(layoutMeters);
+    renderSteps();
+  }
+  $$('.vbtn').forEach(b => b.addEventListener('click', () => setView(b.dataset.viewBtn)));
+  $('#next-bar').addEventListener('click', () => setView('menu'));
+  const isMobile = () => window.matchMedia('(max-width:760px)').matches;
 
   // CUE / MONO / PC volume / hum
   $('#cue-btn').addEventListener('click', () => {
@@ -671,7 +772,7 @@
       const n = +plug.dataset.in;
       if (!S.patch[n]) { if (S.held === n) toast('挿したいソケットをタップしてください'); else { toast(`先に INPUT ${S.held} のケーブルを挿してください`); } return; }
       if (S.held && S.held !== n) { toast(`先に INPUT ${S.held} のケーブルを挿してください`); return; }
-      plugAction('抜き');
+      plugAction('抜き'); sfx('pull'); buzz([6, 30, 10]);
       const from = S.patch[n]; S.patch[n] = null; S.held = n;
       toast(`突起を押しながら INPUT ${n} のケーブルを ${sockName(from)} から抜きました`);
       applyRouting(); renderPatch(); renderSteps(); return;
@@ -681,7 +782,7 @@
       if (!S.held) { toast('先に、差し替えたいケーブルのプラグをタップして抜いてください'); return; }
       const occupied = Object.values(S.patch).includes(id);
       if (occupied) { toast(`${sockName(id)} には別のケーブルが挿さっています`); return; }
-      plugAction('挿し');
+      plugAction('挿し'); sfx('insert'); buzz([10, 60, 18]);
       const n = S.held; S.patch[n] = id; S.held = null;
       toast(`INPUT ${n} を ${sockName(id)} に挿しました`);
       S.steps.pullL = S.patch[11] === 'AL'; S.steps.pullR = S.patch[12] === 'AR';
@@ -721,7 +822,7 @@
     switch (k) {
       case 'L': g.el = needRec || '#assign-L'; break;
       case 'R': g.el = needRec || '#assign-R'; break;
-      case 'gain': g.el = needRec || '#gain-knob'; break;
+      case 'gain': g.el = needRec || (S.touch === 'gain' ? '#hw-knob' : '#gain-knob'); break;
       case 'standby': g.el = needRec || '#rec-btn'; break;
       case 'record': g.el = needRec || '#play-btn'; break;
       case 'stop': g.el = needRec || '#stop-btn'; break;
@@ -730,7 +831,7 @@
       case 'mR': g.el = needMon || '#mon-assign-R'; break;
       case 'mono': g.el = needMon || '#mono-btn'; break;
       case 'spk': case 'spk0': case 'spkup': g.el = '#spk-knob'; break;
-      case 'hum': g.el = '.sw'; break;
+      case 'hum': g.el = '#hum-sw'; break;
       case 'pullL': if (S.held === 11) g.sock = 'AL'; else if (!S.held) g.plug = 11; break;
       case 'pullR': if (S.held === 12) g.sock = 'AR'; else if (!S.held) g.plug = 12; break;
     }
@@ -748,6 +849,15 @@
     if (g.el) { const e = $(g.el); e && e.classList.add('is-guide'); }
     const key = g.plug + '/' + g.sock;
     if (key !== lastGuideKey) { lastGuideKey = key; if (svg.childNodes.length) renderPatch(); }
+    // スマホ：次の手順バーと表示切り替えの誘導
+    const curLi = $(LIST_ID[S.prac] + ' li.is-current b');
+    const nb = $('#next-bar');
+    $('#next-text').textContent = curLi ? curLi.textContent : 'このメニューは完了しました。ほかの練習も試せます';
+    nb.classList.toggle('is-done', !curLi);
+    let tv = null;
+    if (g.plug || g.sock) tv = 'rack';
+    else if (g.el) { const e = $(g.el); const v = e && e.closest('.view'); tv = v ? v.dataset.view : null; }
+    $$('.vbtn').forEach(b => b.classList.toggle('is-guide', !!tv && b.dataset.viewBtn === tv && tv !== S.view));
   }
 
   /* ================= METER LOOP ================= */
@@ -872,6 +982,7 @@
     $('#result-body').innerHTML = `<p class="res-grade ${grade}">${title}</p><ul class="res-list">${items.map(t => `<li>${t}</li>`).join('')}</ul>
       <div class="res-actions"><button class="btn-ghost" id="res-play">録音を聴く</button><a class="btn-ghost" href="${f.url}" download="${f.name}">${f.name} をダウンロード</a></div>`;
     $('#result-card').hidden = false;
+    if (isMobile() && S.view !== 'menu') { $('#menu-badge').hidden = false; setTimeout(() => toast('録音結果を「メニュー」に表示しました', 3000), 900); }
     $('#res-play').addEventListener('click', () => {
       if (S.tstate === 'play' || S.tstate === 'playpause') stopFile();
       S.selFile = S.files.indexOf(f); renderFiles(); playFile(S.selFile, 0);

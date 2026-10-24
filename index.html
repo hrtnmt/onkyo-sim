@@ -54,7 +54,8 @@
 </section>
 
 <!-- ================= APP ================= -->
-<main id="app" class="app" hidden>
+<main id="app" class="app view-desk" hidden>
+  <div class="desk view" data-view="desk">
   <div class="console">
     <div class="console-top">
       <span class="model">QL1</span>
@@ -211,22 +212,13 @@
       <div class="hw">
         <div class="hw-label">TOUCH AND TURN</div>
         <div class="hw-knob" id="hw-knob" role="slider" tabindex="0" aria-label="TOUCH AND TURN ノブ"><div class="hw-knob-cap"><div class="hw-knob-dot"></div></div></div>
-        <div class="hw-hint" id="hw-hint">画面のツマミをタッチすると操作できます</div>
+        <div class="hw-hint" id="hw-hint">画面のツマミをタッチ<br>→ このノブで調整</div>
       </div>
     </div>
   </div>
 
-  <!-- Room: patch panel + speaker -->
-  <section class="room" aria-label="照明室">
-    <div class="patch card-dark">
-      <div class="room-head">
-        <h2>音響機器架 ケーブル盤</h2>
-        <span class="room-sub" id="patch-hint">ケーブルの先（プラグ）をタップで抜く → 空いているソケットをタップで挿す</span>
-      </div>
-      <div class="patch-scroll"><svg id="patch-svg" viewBox="0 0 840 250" role="img" aria-label="ケーブル盤"></svg></div>
-    </div>
     <div class="speaker card-dark">
-      <div class="room-head"><h2>モニタースピーカー</h2></div>
+      <div class="room-head"><h2>モニタースピーカー</h2><span class="room-sub spk-sub">卓の横</span></div>
       <div class="spk-body">
         <div class="spk-box">
           <div class="spk-tw"></div>
@@ -240,10 +232,23 @@
         </div>
       </div>
     </div>
+  </div><!-- /desk -->
+
+  <!-- Rack (behind the desk) -->
+  <section class="rack card-dark view" data-view="rack" aria-label="音響機器架">
+    <div class="patch">
+      <div class="room-head">
+        <h2><span class="behind-tag">卓の背後</span>音響機器架 ケーブル盤</h2>
+        <span class="rack-spk" id="rack-spk">モニタースピーカー 0</span>
+        <span class="room-sub" id="patch-hint">ケーブルの先（プラグ）をタップで抜く → 空いているソケットをタップで挿す</span>
+      </div>
+      <div class="patch-scroll"><svg id="patch-svg" viewBox="0 0 840 250" role="img" aria-label="ケーブル盤"></svg></div>
+      <p class="rack-scroll-hint">左右にスワイプすると、三点吊り・エアモニのソケットが見えます。抜き差しの前に、音響卓のとなりのスピーカーを 0 に。</p>
+    </div>
   </section>
 
   <!-- Side panel -->
-  <aside class="side">
+  <aside class="side view" data-view="menu">
     <section class="card">
       <h2>練習メニュー</h2>
       <div class="prac-tabs" role="tablist">
@@ -256,7 +261,7 @@
         <li data-step="rate"><span class="st-mark"></span><div><b>REC RATE を 192kbps に</b><small>推奨。押すたびに切り替わります</small></div></li>
         <li data-step="L"><span class="st-mark"></span><div><b>L に INPUT 11 を選ぶ</b><small>L のボタン → タブを切り替えて探す</small></div></li>
         <li data-step="R"><span class="st-mark"></span><div><b>R に INPUT 12 を選ぶ</b><small>R のボタンも同様に</small></div></li>
-        <li data-step="gain"><span class="st-mark"></span><div><b>GAIN でピークを −10〜−6dB に</b><small>ツマミを押したまま上下にドラッグ</small></div></li>
+        <li data-step="gain"><span class="st-mark"></span><div><b>GAIN でピークを −10〜−6dB に</b><small>画面の GAIN をタッチ → TOUCH AND TURN を回す</small></div></li>
         <li data-step="standby"><span class="st-mark"></span><div><b>● で録音待機</b><small>REC ボタンが点滅します</small></div></li>
         <li data-step="record"><span class="st-mark"></span><div><b>▶❚❚ で録音開始</b><small>演奏の最後まで録音</small></div></li>
         <li data-step="stop"><span class="st-mark"></span><div><b>■ で録音停止</b><small>YPE フォルダに保存されます</small></div></li>
@@ -284,7 +289,7 @@
 
     <section class="card">
       <h2>トラブル設定</h2>
-      <label class="sw"><input type="checkbox" id="hum-toggle"><span class="sw-ui"></span><span>吊りマイクにハムノイズ発生</span></label>
+      <label class="sw" id="hum-sw"><input type="checkbox" id="hum-toggle"><span class="sw-ui"></span><span>吊りマイクにハムノイズ発生</span></label>
       <p class="mon-note">ハムノイズは電源由来の「ブーン」という低い雑音（北海道は50Hz）。このシミュレーターでは左右で逆位相に入るため、MONO で聴くと打ち消し合います。</p>
     </section>
 
@@ -304,6 +309,7 @@
         <span>PCの出力音量</span>
         <input type="range" id="mon-vol" min="0" max="100" value="70">
       </label>
+      <label class="sw sw-sfx"><input type="checkbox" id="sfx-toggle" checked><span class="sw-ui"></span><span>操作音・振動</span></label>
       <p class="mon-note" id="mon-note"></p>
     </section>
 
@@ -318,6 +324,16 @@
       <button class="btn-ghost" id="change-src">音源を変更</button>
     </section>
   </aside>
+
+  <!-- mobile: next step + view switch -->
+  <div class="mnav">
+    <button class="next-bar" id="next-bar" type="button"><span class="nb-k">次</span><span class="nb-t" id="next-text">—</span></button>
+    <nav class="view-nav" aria-label="表示の切り替え">
+      <button class="vbtn is-on" data-view-btn="desk"><span class="vb-ico vb-desk"></span>音響卓</button>
+      <button class="vbtn" data-view-btn="rack"><span class="vb-ico vb-rack"></span>背後の機器架</button>
+      <button class="vbtn" data-view-btn="menu"><span class="vb-ico vb-menu"></span>メニュー<i class="vb-badge" id="menu-badge" hidden></i></button>
+    </nav>
+  </div>
 </main>
 
 <div class="pop-warn" id="pop-warn" role="alert" hidden></div>
