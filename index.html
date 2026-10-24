@@ -69,13 +69,14 @@
         <div class="fab">
           <div class="fab-scene"><span class="fab-k">SCENE</span><span class="fab-v">000</span><span class="fab-n">Initial Data</span></div>
           <div class="fab-btns">
-            <span class="fab-btn">SETUP</span>
-            <span class="fab-btn is-on">RECORDER</span>
-            <span class="fab-btn">RACK</span>
-            <span class="fab-btn">METER</span>
+            <button class="fab-btn" data-page="none">SETUP</button>
+            <button class="fab-btn is-on" data-page="recorder">RECORDER</button>
+            <button class="fab-btn" data-page="monitor">MONITOR</button>
+            <button class="fab-btn" data-page="none">RACK</button>
           </div>
         </div>
 
+        <div class="page" id="page-recorder">
         <div class="win-title">
           <span>RECORDER</span>
           <div class="win-tabs"><span class="win-tab is-on">USB</span><span class="win-tab is-dim">NUENDO LIVE</span></div>
@@ -113,7 +114,7 @@
                 <div class="meter-head"><span>L</span><span>R</span></div>
                 <div class="meter-body">
                   <canvas id="meter-L" class="meter-bar"></canvas>
-                  <div class="meter-scale" id="meter-scale"></div>
+                  <div class="meter-scale meter-scale-r" id="meter-scale"></div>
                   <canvas id="meter-R" class="meter-bar"></canvas>
                 </div>
               </div>
@@ -139,6 +140,49 @@
             <div class="fl-head"><span class="fl-no">NO.</span><span class="fl-name">FILE NAME</span><span class="fl-artist">ARTIST</span><span class="fl-time">TIME</span></div>
             <div class="fl-dir"><span class="fl-folder" aria-hidden="true"></span>[YPE]</div>
             <div class="fl-rows" id="fl-rows"><div class="fl-empty">ファイルがありません</div></div>
+          </div>
+        </div>
+        </div><!-- /page-recorder -->
+
+        <!-- MONITOR page -->
+        <div class="page" id="page-monitor" hidden>
+          <div class="win-title"><span>MONITOR</span><div class="win-tabs"><span class="win-tab is-on">MONITOR</span><span class="win-tab is-dim">OSCILLATOR</span></div></div>
+          <div class="mon-grid">
+            <div class="panel mon-src">
+              <div class="panel-title">MONITOR INPUT</div>
+              <div class="ri-assign">
+                <div class="ri-row"><span class="ri-lr">L</span><button class="qbtn qbtn-ch" id="mon-assign-L" data-side="L"><span class="ch-name">ST L</span><span class="popup-mark" aria-hidden="true"></span></button></div>
+                <div class="ri-row"><span class="ri-lr">R</span><button class="qbtn qbtn-ch" id="mon-assign-R" data-side="R"><span class="ch-name">ST R</span><span class="popup-mark" aria-hidden="true"></span></button></div>
+              </div>
+            </div>
+            <div class="panel mon-ctl">
+              <div class="panel-title">MONITOR</div>
+              <div class="mon-ctl-body">
+                <div class="ri-gain">
+                  <div class="knob" id="mlevel-knob" role="slider" tabindex="0" aria-label="MONITOR LEVEL" aria-valuemin="-60" aria-valuemax="10" aria-valuenow="0">
+                    <div class="knob-ring"></div>
+                    <div class="knob-cap"><div class="knob-ptr"></div></div>
+                  </div>
+                  <div class="gain-val" id="mlevel-val">0.0</div>
+                  <div class="gain-label">LEVEL</div>
+                </div>
+                <div class="mon-btns">
+                  <button class="qbtn qbtn-mode" id="mono-btn" aria-pressed="false">MONO</button>
+                  <div class="mon-cue" id="mon-cue-ind">CUE 優先中</div>
+                </div>
+                <div class="meter" aria-label="モニターメーター">
+                  <div class="meter-head"><span>L</span><span>R</span></div>
+                  <div class="meter-body">
+                    <canvas id="meter-mL" class="meter-bar"></canvas>
+                    <div class="meter-scale meter-scale-m"></div>
+                    <canvas id="meter-mR" class="meter-bar"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="panel mon-note-p">
+              <p>モニター出力 → 照明室のモニタースピーカーへ。設定しても音が出ないときは、スピーカー本体のツマミを確認しましょう。MONO にすると左右を混ぜて聴けます。</p>
+            </div>
           </div>
         </div>
 
@@ -167,15 +211,47 @@
       <div class="hw">
         <div class="hw-label">TOUCH AND TURN</div>
         <div class="hw-knob" id="hw-knob" role="slider" tabindex="0" aria-label="TOUCH AND TURN ノブ"><div class="hw-knob-cap"><div class="hw-knob-dot"></div></div></div>
-        <div class="hw-hint" id="hw-hint">画面のGAINをタッチすると操作できます</div>
+        <div class="hw-hint" id="hw-hint">画面のツマミをタッチすると操作できます</div>
       </div>
     </div>
   </div>
 
+  <!-- Room: patch panel + speaker -->
+  <section class="room" aria-label="照明室">
+    <div class="patch card-dark">
+      <div class="room-head">
+        <h2>音響機器架 ケーブル盤</h2>
+        <span class="room-sub" id="patch-hint">ケーブルの先（プラグ）をタップで抜く → 空いているソケットをタップで挿す</span>
+      </div>
+      <div class="patch-scroll"><svg id="patch-svg" viewBox="0 0 840 250" role="img" aria-label="ケーブル盤"></svg></div>
+    </div>
+    <div class="speaker card-dark">
+      <div class="room-head"><h2>モニタースピーカー</h2></div>
+      <div class="spk-body">
+        <div class="spk-box">
+          <div class="spk-tw"></div>
+          <div class="spk-cone" id="spk-cone"><div class="spk-cap"></div></div>
+          <div class="spk-led" id="spk-led"></div>
+        </div>
+        <div class="spk-ctl">
+          <div class="spk-knob" id="spk-knob" role="slider" tabindex="0" aria-label="スピーカー音量" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0"><div class="spk-knob-cap"><div class="spk-knob-ptr"></div></div></div>
+          <div class="spk-scale"><span>0</span><b id="spk-val">0</b><span>10</span></div>
+          <div class="spk-label">VOLUME</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Side panel -->
   <aside class="side">
     <section class="card">
-      <h2>手順</h2>
+      <h2>練習メニュー</h2>
+      <div class="prac-tabs" role="tablist">
+        <button class="prac-tab is-on" data-prac="rec">録音</button>
+        <button class="prac-tab" data-prac="mon">モニター</button>
+        <button class="prac-tab" data-prac="patch">差し替え</button>
+      </div>
+      <div data-prac-panel="rec">
       <ol class="steps" id="steps">
         <li data-step="rate"><span class="st-mark"></span><div><b>REC RATE を 192kbps に</b><small>推奨。押すたびに切り替わります</small></div></li>
         <li data-step="L"><span class="st-mark"></span><div><b>L に INPUT 11 を選ぶ</b><small>L のボタン → タブを切り替えて探す</small></div></li>
@@ -185,6 +261,31 @@
         <li data-step="record"><span class="st-mark"></span><div><b>▶❚❚ で録音開始</b><small>演奏の最後まで録音</small></div></li>
         <li data-step="stop"><span class="st-mark"></span><div><b>■ で録音停止</b><small>YPE フォルダに保存されます</small></div></li>
       </ol>
+      </div>
+      <div data-prac-panel="mon" hidden>
+        <ol class="steps" id="steps-mon">
+          <li data-step="mpage"><span class="st-mark"></span><div><b>MONITOR 画面を開く</b><small>画面上部の MONITOR ボタン</small></div></li>
+          <li data-step="mL"><span class="st-mark"></span><div><b>MONITOR INPUT L に INPUT 11</b><small>録音と同じように選ぶ</small></div></li>
+          <li data-step="mR"><span class="st-mark"></span><div><b>MONITOR INPUT R に INPUT 12</b><small></small></div></li>
+          <li data-step="spk"><span class="st-mark"></span><div><b>音が出なければスピーカーのツマミを回す</b><small>照明室のモニタースピーカー</small></div></li>
+          <li data-step="mono"><span class="st-mark"></span><div><b>MONO モードを試す</b><small>ハムノイズが位相キャンセルで消えることも</small></div></li>
+        </ol>
+      </div>
+      <div data-prac-panel="patch" hidden>
+        <ol class="steps" id="steps-patch">
+          <li data-step="hum"><span class="st-mark"></span><div><b>「ハムノイズ発生」をオンにする</b><small>下のトラブル設定。ブーンという音が入ります</small></div></li>
+          <li data-step="spk0"><span class="st-mark"></span><div><b>スピーカーのツマミを 0 にする</b><small>抜き差しの前に必ず。壊れることがあります</small></div></li>
+          <li data-step="pullL"><span class="st-mark"></span><div><b>INPUT 11 のケーブルをエアモニ L へ</b><small>突起を押しながら抜く → 挿し直す</small></div></li>
+          <li data-step="pullR"><span class="st-mark"></span><div><b>INPUT 12 のケーブルをエアモニ R へ</b><small></small></div></li>
+          <li data-step="spkup"><span class="st-mark"></span><div><b>スピーカーを戻してノイズが消えたか確認</b><small></small></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>トラブル設定</h2>
+      <label class="sw"><input type="checkbox" id="hum-toggle"><span class="sw-ui"></span><span>吊りマイクにハムノイズ発生</span></label>
+      <p class="mon-note">ハムノイズは電源由来の「ブーン」という低い雑音（北海道は50Hz）。このシミュレーターでは左右で逆位相に入るため、MONO で聴くと打ち消し合います。</p>
     </section>
 
     <section class="card">
@@ -200,10 +301,10 @@
         <div class="tb-labels"><span>−30</span><span>−18</span><span>−10</span><span>−6</span><span>0</span></div>
       </div>
       <label class="mon">
-        <span>モニター音量</span>
-        <input type="range" id="mon-vol" min="0" max="100" value="60">
+        <span>PCの出力音量</span>
+        <input type="range" id="mon-vol" min="0" max="100" value="70">
       </label>
-      <p class="mon-note" id="mon-note">いま聴こえているのは会場の音です。CUE を押すと録音される音（GAIN 適用後）を聴けます。</p>
+      <p class="mon-note" id="mon-note"></p>
     </section>
 
     <section class="card" id="result-card" hidden>
@@ -219,6 +320,7 @@
   </aside>
 </main>
 
+<div class="pop-warn" id="pop-warn" role="alert" hidden></div>
 <script src="./app.js"></script>
 </body>
 </html>
